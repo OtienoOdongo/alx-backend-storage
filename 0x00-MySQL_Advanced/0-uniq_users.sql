@@ -1,7 +1,9 @@
---creating an sql script for TABLE
---the name of the table is users
+--Writing a sql script that creates a TABLE named users
+--The tables consist of the following attributes
+--They include id, email, name
 CREATE TABLE IF NOT EXISTS users(
-  id INT AUTO_INCREMENT PRIMARY KEY NOT NULL,
+  id INT NOT NULL AUTO_INCREMENT,
   email VARCHAR(255) NOT NULL UNIQUE,
   name VARCHAR(255)
-);
+  PRIMARY KEY (id)
+)
