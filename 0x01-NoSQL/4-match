@@ -1,0 +1,2 @@
+//querying a document with a specific key-value pair
+db.school.find({name: "Holberton school"})
