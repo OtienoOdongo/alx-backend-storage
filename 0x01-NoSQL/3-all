@@ -1,0 +1,2 @@
+//a script that queries all documents in a given collection
+db.school.findOne()
