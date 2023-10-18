@@ -100,70 +100,74 @@ class Cache:
         """
         return self.get(key, fn=int)
 
-    def count_calls(method: Callable) -> Callable:
-        """
-        A decorator that counts the number of times
-        a method is called and stores it in Redis.
 
-        Args: method (Callable):
-        The method to be wrapped and tracked.
+def count_calls(method: Callable) -> Callable:
+    """
+    A decorator to count the number of times a method is called.
 
-        Returns:
+    Args:
+        method (Callable): The method to be decorated.
+
+    Returns:
         Callable: The decorated method.
-        """
-        key = method.__qualname__
+    """
+    @wraps(method)
+    def wrapper(self, *args, **kwargs):
+        self._redis.incr(method.__qualname__)
+        return method(self, *args, **kwargs)
 
-        @wraps(method)
-        def wrapper(self, *args, **kwargs):
-            """
-            Wrapper function for counting method calls
-            and calling the original method.
+    return wrapper
 
-            Args:
-            self: The instance of the class.
-            *args: Positional arguments passed to the method.
-            **kwargs: Keyword arguments passed to the method.
 
-            Returns:
-            Any: The result of the original method.
-            """
-            self._redis.incr(key)
-            return method(self, *args, **kwargs)
-        return wrapper
+def call_history(method: Callable) -> Callable:
+    """
+    A decorator to record input and output history of a method.
 
-        def call_history(method: Callable) -> Callable:
-            """
-            A decorator that stores the inputs
-            and outputs of a method in Redis.
+    Args:
+        method (Callable): The method to be decorated.
 
-            Args:
-            method (Callable):
-            The method to be wrapped and tracked.
+    Returns:
+        Callable: The decorated method.
+    """
+    @wraps(method)
+    def wrapper(self, *args, **kwargs):
+        input_key = method.__qualname__ + ':inputs'
+        output_key = method.__qualname__ + ':outputs'
+        self._redis.rpush(input_key, str(args))
+        output = method(self, *args, **kwargs)
+        self._redis.rpush(output_key, output)
+        return output
 
-            Returns:
-            Callable: The decorated method.
-            """
-            @wraps(method)
-            def wrapper(self, *args, **kwargs):
-                """
-                Wrapper function for storing method
-                inputs and outputs in Redis.
+    return wrapper
 
-                Args:
-                self: The instance of the class.
-                *args: Positional arguments passed to the method.
-                **kwargs: Keyword arguments passed to the method.
 
-                Returns:
-                Any: The result of the original method.
-                """
-                input_key = method.__qualname__ + ":inputs"
-                output_key = method.__qualname__ + ":outputs"
+def replay(fn: Callable) -> None:
+    """
+    Display the history of calls of a particular function.
 
-                output = method(self, *args, **kwargs)
+    Args:
+        fn (Callable): The function whose history to display.
+    """
+    fn_name = fn.__name__
+    input_key = f'{fn_name}:inputs'
+    output_key = f'{fn_name}:outputs'
+    cache = redis.Redis()
 
-                self._redis.rpush(input_key, str(args))
-                self._redis.rpush(output_key, str(output))
-                return output
+    if not cache.exists(input_key):
+        print(f"{fn_name} was never called.")
+        return
 
-            return wrapper
+    call_count = cache.llen(input_key)
+    print(f"{fn_name} was called {call_count} times:")
+
+    inputs = [
+        cache.lindex(input_key, i).decode('utf-8')
+        for i in range(call_count)
+    ]
+    outputs = [
+        cache.lindex(output_key, i).decode('utf-8')
+        for i in range(call_count)
+    ]
+
+    for i, o in zip(inputs, outputs):
+        print(f"{fn_name}(*{i}) -> {o}")
