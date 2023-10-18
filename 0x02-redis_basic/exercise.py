@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""writing a string in redis"""
+"""a redis exercise questions answered in a single file"""
 
 
 import redis
 import uuid
-from typing import Union
+from typing import Union, Callable
 
 
 class Cache:
@@ -53,3 +53,48 @@ class Cache:
         self._redis.set(random_key, data)
 
         return random_key
+
+    def get(self, key: str, fn: Callable = None):
+        """
+        Retrieve data from Redis using a key
+        and apply a conversion function.
+
+        Args:
+            key (str): The key to retrieve data from Redis.
+            fn (Callable, optional):
+            a callable function to convert the data back to the desired format.
+
+        Returns:
+            Union[str, bytes, int, float]:
+            The retrieved data after applying the conversion function.
+        """
+        data = self._redis.get(key)
+        if data is None:
+            return None
+        if fn is not None:
+            return fn(data)
+        return data
+
+    def get_str(self, key: str):
+        """
+        Retrieve and return a string from Redis using a key.
+
+        Args:
+            key (str): The key to retrieve a string from Redis.
+
+        Returns:
+            str: The retrieved string.
+        """
+        return self.get(key, fn=lambda d: d.decode("utf-8"))
+
+    def get_int(self, key: str):
+        """
+        Retrieve and return an integer from Redis using a key.
+
+        Args:
+            key (str): The key to retrieve an integer from Redis.
+
+        Returns:
+            int: The retrieved integer.
+        """
+        return self.get(key, fn=int)
